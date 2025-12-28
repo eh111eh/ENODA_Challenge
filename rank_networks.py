@@ -8,9 +8,8 @@ V0_MAX = 242.0
 
 def find_feasible_setpoint(Z, p_summer, p_winter):
     """
-    Find feasible substation voltage v0 that satisfies voltage limits
-    for both summer and winter profiles.
-    Returns: feasible (bool), best_v0 (float), effort (float)
+    Search for feasible substation voltage that keeps all nodes within limits
+    for both summer and winter profiles. Return best v0 and effort.
     """
     v0_candidates = np.linspace(V0_MIN, V0_MAX, 47)
     feasible_setpoints = []
@@ -20,22 +19,17 @@ def find_feasible_setpoint(Z, p_summer, p_winter):
         v_w = calculate_voltage_profile(v0, Z, p_winter)
 
         if within_statutory_limits(v_s) and within_statutory_limits(v_w):
-            feasible_setpoints.append(v0)
+            feasible_setpoints.append((v0, v_s, v_w))
 
     if not feasible_setpoints:
         return False, None, None
 
-    # Choose setpoint closest to nominal voltage
-    best_v0 = min(feasible_setpoints, key=lambda x: abs(x - 230.0))
-
-    # Compute maximum deviation along network as effort
-    v_s = calculate_voltage_profile(best_v0, Z, p_summer)
-    v_w = calculate_voltage_profile(best_v0, Z, p_winter)
-    effort = max(
-        max(abs(v_s - 230.0)),
-        max(abs(v_w - 230.0))
-    )
-
+    # Choose setpoint closest to nominal
+    best_v0 = min(feasible_setpoints, key=lambda x: abs(x[0] - 230.0))[0]
+    # Effort = maximum deviation from nominal voltage
+    effort = max(abs(best_v0 - 230.0),
+                 max(abs(np.array(feasible_setpoints[0][1]) - 230.0)),
+                 max(abs(np.array(feasible_setpoints[0][2]) - 230.0)))
     return True, best_v0, effort
 
 def main():

@@ -7,56 +7,52 @@ V_NOMINAL = 230.0
 V_MIN = 207.0
 V_MAX = 253.0
 
-# -------------------------------
-# Transformer regulation / load diversity
-# -------------------------------
-LOAD_DIVERSITY = 0.05  # non-coincident peak factor
-
 def calculate_voltage_profile(v0, Z, p_values):
     """
-    Serial LV network voltage calculation using cumulative downstream power.
+    Compute node voltages along a serial network using full downstream power.
 
     Parameters
     ----------
     v0 : float
-        Substation voltage (V)
+        Substation voltage (secondary side)
     Z : float
-        Line impedance per segment (Ohm)
+        Line impedance per segment (Ohms)
     p_values : array-like
-        Power injections at each node (W). Positive = generation, negative = load
+        Power injections at nodes (W). Negative for load, positive for generation.
 
     Returns
     -------
-    v : np.ndarray
-        Voltages at all nodes, v[0] = v0
+    numpy.ndarray
+        Voltages at all nodes including substation [v0 ... vN]
     """
     N = len(p_values)
     v = np.zeros(N + 1)
     v[0] = v0
 
-    # Compute cumulative downstream power (including this node)
-    p_downstream = np.cumsum(p_values[::-1])[::-1]
+    # Compute total downstream power at each segment
+    p_downstream = np.cumsum(p_values[::-1])[::-1]  # sum from node i to end
 
     for i in range(1, N + 1):
-        # Apply diversity factor and convert to kW
-        p_kw = LOAD_DIVERSITY * p_downstream[i - 1] * 1e-3
+        # Convert to kW
+        p_kw = p_downstream[i - 1] * 1e-3
 
-        # Avoid division by zero in rare cases
-        if v[i - 1] <= 0:
-            v[i:] = 0
-            break
-
-        # Voltage drop: ΔV = Z * I, I = P / V
+        # Voltage drop approximation: ΔV = Z * I ~ Z * P / V
         delta_v = Z * p_kw / v[i - 1]
 
-        # Sending -> receiving voltage
+        # Subtract for consumption, add for generation
         v[i] = v[i - 1] - delta_v
 
     return v
 
-
 def within_statutory_limits(v_profile):
     """
-    Checks if all node voltages are within statutory limits.
+    Check if all node voltages are within statutory limits.
     """
     return np.all((v_profile >= V_MIN) & (v_profile <= V_MAX))
+
+def voltage_margin(v_profile):
+    """
+    Compute margin: minimum distance to voltage limits.
+    Positive if safely within limits, negative if violating.
+    """
+    return min(v_profile - V_MIN.min(), V_MAX.max() - v_profile.max())
