@@ -77,7 +77,7 @@ def main():
     # Rank by largest network first, then lowest effort
     df = pd.DataFrame(results)
     df = df.sort_values(by=["size", "effort"], ascending=[False, True]).head(10)
-    df.to_csv("top_10_networks.csv", index=False)
+    df.to_csv("data/top_10_networks.csv", index=False)
 
     print("\nSelected Top 10 Networks:\n")
     print(df)

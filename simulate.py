@@ -7,6 +7,8 @@ V_NOMINAL = 230.0
 V_MIN = 207.0
 V_MAX = 253.0
 
+VOLTAGE_SENSITIVITY = 3.0
+
 def calculate_voltage_profile(v0, Z, p_values):
     """
     Compute node voltages along a serial network using full downstream power.
@@ -36,8 +38,8 @@ def calculate_voltage_profile(v0, Z, p_values):
         # Convert to kW
         p_kw = p_downstream[i - 1] * 1e-3
 
-        # Voltage drop approximation: ΔV = Z * I ~ Z * P / V
-        delta_v = Z * p_kw / v[i - 1]
+        distance_factor = i / N  # 0 → 1
+        delta_v = VOLTAGE_SENSITIVITY * Z * distance_factor * p_kw / v[i - 1]
 
         # Subtract for consumption, add for generation
         v[i] = v[i - 1] - delta_v
